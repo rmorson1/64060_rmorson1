@@ -1,0 +1,54 @@
+---
+title: "Assignment 1 - NFL FastR 2024"
+author: "Robert Morson"
+output: html_document
+---
+
+# Introduction
+
+This assignment uses the **nflfastR** dataset for the 2024 NFL season.  
+The dataset includes both **quantitative variables** (numbers such as yards gained and EPA)  
+and **categorical variables** (labels such as play type and team).  
+
+
+---
+
+# Step 1: Load packages
+
+```{r load_packages}
+knitr::opts_chunk$set(echo = TRUE)
+library(nflfastR)  # For NFL play-by-play data
+library(dplyr)     # For data manipulation
+library(ggplot2)   # For plotting
+
+# Load 2024 play-by-play data
+pbp_data <- load_pbp(2024)
+
+# Select a mix of quantitative and categorical variables
+df <- pbp_data %>%
+  select(yardline_100, yards_gained, epa, play_type, posteam) %>%
+  filter(!is.na(yardline_100))
+
+# Display first few rows
+head(df)
+
+# Quantitative variables
+summary(df[, c("yardline_100", "yards_gained", "epa")])
+
+# Categorical variables
+table(df$play_type)
+table(df$posteam)
+
+# Create a new variable: log of yards gained
+df$log_yards <- log(df$yards_gained + 1)
+head(df$log_yards)
+
+hist(df$epa, breaks=50, main="Histogram of EPA (2024 Season)", 
+     xlab="Expected Points Added (EPA)", col="lightblue")
+
+ggplot(df, aes(x = yardline_100, y = yards_gained, color = play_type)) +
+  geom_point(alpha = 0.5) +
+  labs(title = "Yardline vs Yards Gained (2024 Season)",
+       x = "Yardline (distance to endzone)",
+       y = "Yards Gained") +
+  theme_minimal()
