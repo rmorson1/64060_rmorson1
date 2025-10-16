@@ -1,0 +1,72 @@
+---
+title: "Assignment 3 Robert Morson"
+author: "Robert Morson"
+date: "2025-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(e1071)
+library(reshape2)
+library(knitr)
+set.seed(123)
+
+df <- read.csv("UniversalBank.csv", stringsAsFactors = FALSE)
+df$Online <- as.factor(df$Online)
+df$CC     <- as.factor(df$CreditCard)
+df$Loan   <- as.factor(df$Personal.Loan)
+head(df)
+
+n <- nrow(df)
+train_idx <- sample(seq_len(n), size = floor(0.6 * n))
+train <- df[train_idx, ]
+valid <- df[-train_idx, ]
+
+pivot_A <- dcast(train, CC + Loan ~ Online, fun.aggregate = length, value.var = "Online")
+kable(pivot_A, caption = "Pivot Table: CC + Loan vs Online")
+
+count_111 <- sum(train$CC == "1" & train$Online == "1" & train$Loan == "1")
+count_total <- sum(train$CC == "1" & train$Online == "1")
+p_empirical <- count_111 / count_total
+cat("Empirical P(Loan=1 | CC=1, Online=1) =", p_empirical, "\n")
+
+pivot_C1 <- dcast(train, Loan ~ Online, fun.aggregate = length, value.var = "Online")
+kable(pivot_C1, caption = "Pivot Table: Loan vs Online")
+
+pivot_C2 <- dcast(train, Loan ~ CC, fun.aggregate = length, value.var = "CC")
+kable(pivot_C2, caption = "Pivot Table: Loan vs CC")
+
+n_loan1 <- sum(train$Loan == "1")
+n_loan0 <- sum(train$Loan == "0")
+n_total <- nrow(train)
+
+p_cc1_given_loan1 <- sum(train$CC == "1" & train$Loan == "1") / n_loan1
+p_online1_given_loan1 <- sum(train$Online == "1" & train$Loan == "1") / n_loan1
+p_loan1 <- n_loan1 / n_total
+
+p_cc1_given_loan0 <- sum(train$CC == "1" & train$Loan == "0") / n_loan0
+p_online1_given_loan0 <- sum(train$Online == "1" & train$Loan == "0") / n_loan0
+p_loan0 <- n_loan0 / n_total
+
+cat("P(CC=1 | Loan=1) =", p_cc1_given_loan1, "\n")
+cat("P(Online=1 | Loan=1) =", p_online1_given_loan1, "\n")
+cat("P(Loan=1) =", p_loan1, "\n")
+cat("P(CC=1 | Loan=0) =", p_cc1_given_loan0, "\n")
+cat("P(Online=1 | Loan=0) =", p_online1_given_loan0, "\n")
+cat("P(Loan=0) =", p_loan0, "\n")
+
+num1 <- p_cc1_given_loan1 * p_online1_given_loan1 * p_loan1
+num0 <- p_cc1_given_loan0 * p_online1_given_loan0 * p_loan0
+p_nb_manual <- num1 / (num1 + num0)
+cat("Manual Naive Bayes P(Loan=1 | CC=1, Online=1) =", p_nb_manual, "\n")
+
+cat("Empirical =", p_empirical, "; Manual Naive Bayes =", p_nb_manual, "\n")
+
+nb_model <- naiveBayes(Loan ~ CC + Online, data = train, laplace = 0)
+new_obs <- data.frame(
+CC = factor("1", levels = levels(train$CC)),
+Online = factor("1", levels = levels(train$Online))
+)
+pred_prob <- predict(nb_model, new_obs, type = "raw")
+cat("Model-based Naive Bayes P(Loan=1 | CC=1, Online=1) =", pred_prob[1, "1"], "\n")
