@@ -1,0 +1,101 @@
+---
+title: "Assignment 4"
+author: "Robert Morson"
+date: "2025-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# Pharmaceutical Cluster Analysis
+
+# Load required libraries
+library(cluster)
+library(dplyr)
+
+# Load the data
+pharma_data <- read.csv("Pharmaceuticals (1) - Copy.csv", stringsAsFactors = FALSE)
+
+# PART A: CLUSTER ANALYSIS USING NUMERICAL VARIABLES (1-9)
+cat("PART A: CLUSTER ANALYSIS\n")
+cat("=======================\n")
+
+# Select numerical variables
+numerical_vars <- c("Market_Cap", "Beta", "PE_Ratio", "ROE", "ROA", 
+                    "Asset_Turnover", "Leverage", "Rev_Growth", "Net_Profit_Margin")
+
+# Create subset and standardize
+pharma_numerical <- pharma_data[, c("Symbol", "Name", numerical_vars)]
+pharma_scaled <- scale(pharma_numerical[, numerical_vars])
+rownames(pharma_scaled) <- pharma_numerical$Symbol
+
+# Justification of choices
+cat("Justification:\n")
+cat("- Variables: Using all 9 numerical financial variables\n")
+cat("- Standardization: Z-score normalization for equal weighting\n")
+cat("- Algorithm: K-means clustering (suitable for continuous data)\n")
+cat("- Clusters: 4 clusters (based on elbow method)\n\n")
+
+# Perform clustering
+set.seed(123)
+kmeans_result <- kmeans(pharma_scaled, centers = 4, nstart = 25)
+pharma_numerical$Cluster <- kmeans_result$cluster
+
+# Show cluster assignments
+cat("Cluster assignments:\n")
+print(data.frame(Symbol = pharma_numerical$Symbol, 
+                 Name = pharma_numerical$Name, 
+                 Cluster = pharma_numerical$Cluster))
+
+# PART B: INTERPRET CLUSTERS WITH NUMERICAL VARIABLES
+cat("\n\nPART B: CLUSTER INTERPRETATION\n")
+cat("==============================\n")
+
+# Calculate cluster means
+cluster_means <- pharma_numerical %>%
+  group_by(Cluster) %>%
+  summarise(across(all_of(numerical_vars), mean), .groups = 'drop')
+
+cat("Cluster means for numerical variables:\n")
+print(round(cluster_means, 2))
+
+# PART C: PATTERNS WITH CATEGORICAL VARIABLES (10-12)
+cat("\n\nPART C: CATEGORICAL VARIABLE PATTERNS\n")
+cat("=====================================\n")
+
+# Add categorical variables
+pharma_complete <- merge(pharma_numerical, 
+                         pharma_data[, c("Symbol", "Median_Recommendation", "Location", "Exchange")],
+                         by = "Symbol")
+
+# Analyze patterns
+cat("Median Recommendation by cluster:\n")
+print(table(pharma_complete$Cluster, pharma_complete$Median_Recommendation))
+
+cat("\nLocation by cluster:\n")
+print(table(pharma_complete$Cluster, pharma_complete$Location))
+
+cat("\nExchange by cluster:\n")
+print(table(pharma_complete$Cluster, pharma_complete$Exchange))
+
+# PART D: CLUSTER NAMING
+cat("\n\nPART D: CLUSTER NAMING\n")
+cat("======================\n")
+
+for (i in 1:4) {
+  means <- cluster_means[cluster_means$Cluster == i, ]
+  
+  # Simple naming based on key characteristics
+  size <- ifelse(means$Market_Cap > 50, "Large", "Small")
+  risk <- ifelse(means$Beta > 0.5, "High Risk", "Low Risk")
+  profit <- ifelse(means$ROE > 20, "High Profit", "Low Profit")
+  
+  cluster_name <- paste(size, risk, profit, "Companies")
+  
+  cat("Cluster", i, ":", cluster_name, "\n")
+  cat("  Companies:", paste(pharma_numerical$Name[pharma_numerical$Cluster == i], collapse = ", "), "\n\n")
+}
